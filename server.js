@@ -17,7 +17,18 @@ console.log("Azure Storage Connection String:", process.env.AZURE_STORAGE_CONNEC
 
 const app = express();
 
-app.use(cors({ origin: "http://localhost:5173" }));
+// Configure CORS for different environments
+const corsOptions = {
+  origin: [
+    "http://localhost:5173",  // Vite dev server
+    "http://localhost:4280",  // Azure Static Web Apps CLI
+    /https:\/\/.*\.azurestaticapps\.net$/  // Azure Static Web Apps production
+  ],
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
 app.use(bodyParser.json());
 app.use(fileUpload({ limits: { fileSize: 50 * 1024 * 1024 } }));  
 

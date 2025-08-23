@@ -39,6 +39,49 @@ createContainerIfNotExists();
 // Set up Prisma client
 const prisma = new PrismaClient();
 
+// Health check endpoint
+app.get('/health', async (req, res) => {
+    try {
+        // Basic health check
+        const healthCheck = {
+            status: 'ok',
+            timestamp: new Date().toISOString(),
+            uptime: process.uptime(),
+            version: '1.0.0',
+            environment: process.env.NODE_ENV || 'development'
+        };
+
+        // Check database connectivity
+        try {
+            await prisma.$queryRaw`SELECT 1`;
+            healthCheck.database = 'connected';
+        } catch (dbError) {
+            healthCheck.database = 'disconnected';
+            healthCheck.status = 'degraded';
+        }
+
+        // Check Azure Blob Storage connectivity
+        try {
+            await containerClient.exists();
+            healthCheck.blobStorage = 'connected';
+        } catch (blobError) {
+            healthCheck.blobStorage = 'disconnected';
+            healthCheck.status = 'degraded';
+        }
+
+        // Return appropriate HTTP status
+        const httpStatus = healthCheck.status === 'ok' ? 200 : 503;
+        res.status(httpStatus).json(healthCheck);
+
+    } catch (error) {
+        res.status(503).json({
+            status: 'error',
+            timestamp: new Date().toISOString(),
+            error: error.message
+        });
+    }
+});
+
 // Route to handle user login with Firebase Authentication
 app.post('/auth/login', async (req, res) => {
     const { token } = req.body;

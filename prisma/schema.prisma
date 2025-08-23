@@ -1,0 +1,157 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  firebaseUid   String   @unique
+  email         String   @unique
+  firstName     String?
+  lastName      String?
+  displayName   String?
+  bio           String?
+  location      String?
+  website       String?
+  profilePicture String?
+  dateOfBirth   DateTime?
+  genrePreferences String?  // JSON string of preferred genres
+  isArtist      Boolean  @default(false)
+  artistName    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("users")
+}
+
+model UserSong {
+  id          String     @id @default(cuid())
+  title       String
+  artist      String
+  album       String?
+  genre       String?
+  trackNumber Int?
+  explicit    Boolean    @default(false)
+  fileUrl     String
+  imageUrl    String?
+  uploadedAt  DateTime   @default(now())
+  ownerId     String
+  source      String     @default("user")
+  plays       Int        @default(0)
+  // purchases   Purchase[] @relation("UserSongPurchases")
+
+  @@map("user_songs")
+}
+
+model Purchase {
+  id          String   @id @default(cuid())
+  userId      String
+  songId      String
+  songType    String   @default("user") // "user" or "spotify"
+  purchasedAt DateTime @default(now())
+  
+  // Optional relations - only one will be populated based on songType
+  // userSong    UserSong? @relation("UserSongPurchases", fields: [songId], references: [id], onDelete: Cascade)
+  // spotifyTrack Track?   @relation("SpotifyTrackPurchases", fields: [songId], references: [id], onDelete: Cascade)
+
+  @@map("purchases")
+}
+
+model Artist {
+  id            String        @id @default(cuid())
+  spotify_id    String        @unique
+  name          String
+  spotify_url   String?
+  created_at    DateTime      @default(now())
+  updated_at    DateTime      @updatedAt
+  album_artists AlbumArtist[]
+  track_artists TrackArtist[]
+
+  @@map("artists")
+}
+
+model Album {
+  id                     String        @id @default(cuid())
+  spotify_id             String        @unique
+  name                   String
+  album_type             String
+  total_tracks           Int
+  release_date           String
+  release_date_precision String
+  spotify_url            String?
+  created_at             DateTime      @default(now())
+  updated_at             DateTime      @updatedAt
+  album_artists          AlbumArtist[]
+  media                  Media[]
+  tracks                 Track[]
+
+  @@map("albums")
+}
+
+model AlbumArtist {
+  id         String   @id @default(cuid())
+  album_id   String
+  artist_id  String
+  created_at DateTime @default(now())
+  album      Album    @relation(fields: [album_id], references: [id], onDelete: Cascade)
+  artist     Artist   @relation(fields: [artist_id], references: [id], onDelete: Cascade)
+
+  @@unique([album_id, artist_id])
+  @@map("album_artists")
+}
+
+model Track {
+  id            String        @id @default(cuid())
+  spotify_id    String        @unique
+  name          String
+  album_id      String
+  track_number  Int
+  disc_number   Int           @default(1)
+  duration_ms   Int
+  preview_url   String?
+  spotify_url   String?
+  isrc          String?
+  explicit      Boolean       @default(false)
+  created_at    DateTime      @default(now())
+  updated_at    DateTime      @updatedAt
+  track_artists TrackArtist[]
+  // purchases     Purchase[] @relation("SpotifyTrackPurchases")
+  album         Album         @relation(fields: [album_id], references: [id], onDelete: Cascade)
+
+  @@map("tracks")
+}
+
+model TrackArtist {
+  id         String   @id @default(cuid())
+  track_id   String
+  artist_id  String
+  created_at DateTime @default(now())
+  artist     Artist   @relation(fields: [artist_id], references: [id], onDelete: Cascade)
+  track      Track    @relation(fields: [track_id], references: [id], onDelete: Cascade)
+
+  @@unique([track_id, artist_id])
+  @@map("track_artists")
+}
+
+model Media {
+  id          String   @id @default(cuid())
+  album_id    String
+  type        String
+  filename    String
+  blob_url    String
+  spotify_url String?
+  height      Int?
+  width       Int?
+  file_size   Int?
+  mime_type   String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  album       Album    @relation(fields: [album_id], references: [id], onDelete: Cascade)
+
+  @@unique([album_id, type])
+  @@map("media")
+}

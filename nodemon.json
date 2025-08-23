@@ -1,0 +1,21 @@
+{
+  "watch": [
+    "server.js",
+    "src",
+    "prisma",
+    "*.js"
+  ],
+  "ext": "js,json",
+  "ignore": [
+    "node_modules",
+    "temp",
+    "**/*.test.js",
+    "**/coverage/**"
+  ],
+  "exec": "node server.js",
+  "env": {
+    "NODE_ENV": "development"
+  }
+}
+
+

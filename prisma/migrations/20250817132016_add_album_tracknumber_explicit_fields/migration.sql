@@ -1,0 +1,21 @@
+BEGIN TRY
+
+BEGIN TRAN;
+
+-- AlterTable
+ALTER TABLE [dbo].[user_songs] ADD [album] NVARCHAR(1000),
+[explicit] BIT NOT NULL CONSTRAINT [user_songs_explicit_df] DEFAULT 0,
+[trackNumber] INT;
+
+COMMIT TRAN;
+
+END TRY
+BEGIN CATCH
+
+IF @@TRANCOUNT > 0
+BEGIN
+    ROLLBACK TRAN;
+END;
+THROW
+
+END CATCH

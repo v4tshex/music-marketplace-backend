@@ -21,7 +21,7 @@ const app = express();
 const corsOptions = {
   origin: [
     "http://localhost:5173",  // Vite dev server
-    "https://music-marketplace-backend-dbdl.onrender.com"
+    "https://music-marketplace-frontend.onrender.com"
   ],
   credentials: true,
   optionsSuccessStatus: 200

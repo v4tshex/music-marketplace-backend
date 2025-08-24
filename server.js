@@ -107,7 +107,7 @@ app.post('/auth/login', async (req, res) => {
 });
 
 // Route to create user profile
-app.post('/api/users', async (req, res) => {
+app.post('/users', async (req, res) => {
     const { 
         firebaseUid, 
         email, 
@@ -149,7 +149,7 @@ app.post('/api/users', async (req, res) => {
 });
 
 // Route to get user profile by Firebase UID
-app.get('/api/users/:firebaseUid', async (req, res) => {
+app.get('/users/:firebaseUid', async (req, res) => {
     const { firebaseUid } = req.params;
 
     try {
@@ -169,7 +169,7 @@ app.get('/api/users/:firebaseUid', async (req, res) => {
 });
 
 // Route to update user profile
-app.put('/api/users/:firebaseUid', async (req, res) => {
+app.put('/users/:firebaseUid', async (req, res) => {
     const { firebaseUid } = req.params;
     const { 
         firstName, 
@@ -290,7 +290,7 @@ app.post('/metadata', async (req, res) => {
 });
 
 // Route to retrieve user's songs
-app.get('/api/my-songs/:uid', async (req, res) => {
+app.get('/my-songs/:uid', async (req, res) => {
   const userId = req.params.uid;
 
   try {
@@ -352,7 +352,7 @@ app.get('/metadata', async (req, res) => {
 });
 
 // Route to get all user-uploaded songs
-app.get('/api/user-songs', async (req, res) => {
+app.get('/user-songs', async (req, res) => {
   try {
     const userSongs = await prisma.userSong.findMany({
       orderBy: {
@@ -406,7 +406,7 @@ app.get('/debug/media', async (req, res) => {
 });
 
 // Route to search songs with pagination
-app.get('/api/search', async (req, res) => {
+app.get('/search', async (req, res) => {
   try {
     const { q: searchTerm, page = 1, limit = 10 } = req.query;
     const pageNum = parseInt(page);
@@ -496,7 +496,7 @@ app.get('/api/search', async (req, res) => {
 });
 
 // Route to search artists with pagination
-app.get('/api/artists', async (req, res) => {
+app.get('/artists', async (req, res) => {
   try {
     const { q: searchTerm, page = 1, limit = 10 } = req.query;
     const pageNum = parseInt(page);
@@ -585,7 +585,7 @@ app.get('/api/artists', async (req, res) => {
 });
 
 // Route to get songs by a specific artist
-app.get('/api/artists/:artistId/songs', async (req, res) => {
+app.get('/artists/:artistId/songs', async (req, res) => {
   try {
     const { artistId } = req.params;
     const { page = 1, limit = 12 } = req.query;
@@ -676,7 +676,7 @@ app.get('/api/artists/:artistId/songs', async (req, res) => {
 });
 
 // Delete a song
-app.delete('/api/songs/:id', async (req, res) => {
+app.delete('/songs/:id', async (req, res) => {
   const { id } = req.params;
   console.log("Deleting song with id:", id);
 
@@ -692,7 +692,7 @@ app.delete('/api/songs/:id', async (req, res) => {
 });
 
 // Increment play count
-app.post('/api/songs/:id/play', async (req, res) => {
+app.post('/songs/:id/play', async (req, res) => {
   const { id } = req.params;
 
   try {
@@ -717,7 +717,7 @@ app.post('/api/songs/:id/play', async (req, res) => {
 });
 
 // Purchase a song
-app.post('/api/purchase', async (req, res) => {
+app.post('/purchase', async (req, res) => {
   const { userId, songId, paymentData } = req.body;
 
   if (!userId || !songId) {
@@ -768,7 +768,7 @@ app.post('/api/purchase', async (req, res) => {
 });
 
 // Get user purchases
-app.get('/api/purchases/:userId', async (req, res) => {
+app.get('/purchases/:userId', async (req, res) => {
   const userId = req.params.userId;
 
   try {

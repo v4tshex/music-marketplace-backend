@@ -3,12 +3,6 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "seed": "node spotify-seeder.js",
-    "seed:spotify": "node spotify-seeder.js",
-    "seed:covers": "node album-cover-seeder.js",
-    "test:covers": "node test-cover-seeder.js",
-    "test:seeder": "node test-seeder.js",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",

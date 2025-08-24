@@ -288,21 +288,6 @@ app.post('/metadata', async (req, res) => {
     }
 });
 
-// Route to retrieve user's songs
-app.get('/my-songs/:uid', async (req, res) => {
-  const userId = req.params.uid;
-
-  try {
-    const userSongs = await prisma.userSong.findMany({
-      where: { ownerId: userId }
-    });
-
-    res.status(200).json(userSongs);
-  } catch (err) {
-    console.error("Error fetching user songs:", err.message);
-    res.status(500).send("Failed to fetch user songs");
-  }
-});
 
 // Route to calculate royalties (simulated)
 app.post('/calculate-royalty', (req, res) => {
@@ -350,10 +335,32 @@ app.get('/metadata', async (req, res) => {
   }
 });
 
-// Route to get all user-uploaded songs
-app.get('/user-songs', async (req, res) => {
+// Middleware to verify Firebase token and get user ID
+const authenticateUser = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'No token provided' });
+  }
+
+  const token = authHeader.split(' ')[1];
   try {
+    const decodedToken = await admin.auth().verifyIdToken(token);
+    req.user = { uid: decodedToken.uid };
+    next();
+  } catch (error) {
+    console.error('Token verification error:', error);
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+};
+
+// Route to get user-uploaded songs for the authenticated user
+app.get('/user-songs', authenticateUser, async (req, res) => {
+  try {
+    const userId = req.user.uid;
     const userSongs = await prisma.userSong.findMany({
+      where: {
+        ownerId: userId
+      },
       orderBy: {
         uploadedAt: 'desc'
       }
@@ -362,6 +369,30 @@ app.get('/user-songs', async (req, res) => {
   } catch (error) {
     console.error('Error fetching user songs:', error);
     res.status(500).send('Error fetching user songs: ' + error.message);
+  }
+});
+
+// Route to get recent user-uploaded songs (last month) for the music catalogue
+app.get('/recent-user-songs', async (req, res) => {
+  try {
+    // Calculate date from one month ago
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    
+    const recentUserSongs = await prisma.userSong.findMany({
+      where: {
+        uploadedAt: {
+          gte: oneMonthAgo
+        }
+      },
+      orderBy: {
+        uploadedAt: 'desc'
+      }
+    });
+    res.status(200).json(recentUserSongs);
+  } catch (error) {
+    console.error('Error fetching recent user songs:', error);
+    res.status(500).send('Error fetching recent user songs: ' + error.message);
   }
 });
 
@@ -674,12 +705,26 @@ app.get('/artists/:artistId/songs', async (req, res) => {
   }
 });
 
-// Delete a song
-app.delete('/songs/:id', async (req, res) => {
+// Delete a song (authenticated, user can only delete their own songs)
+app.delete('/songs/:id', authenticateUser, async (req, res) => {
   const { id } = req.params;
-  console.log("Deleting song with id:", id);
+  const userId = req.user.uid;
+  console.log("Deleting song with id:", id, "for user:", userId);
 
   try {
+    // First check if the song exists and belongs to the user
+    const song = await prisma.userSong.findUnique({
+      where: { id: id }
+    });
+
+    if (!song) {
+      return res.status(404).json({ error: "Song not found" });
+    }
+
+    if (song.ownerId !== userId) {
+      return res.status(403).json({ error: "You can only delete your own songs" });
+    }
+
     await prisma.userSong.delete({
       where: { id: id }
     });
@@ -726,6 +771,15 @@ app.post('/purchase', async (req, res) => {
   const TRACK_PRICE = 0.99; // Fixed price for all tracks
 
   try {
+    // Check if the song is a user-uploaded song and if the user is trying to purchase their own song
+    const userSong = await prisma.userSong.findUnique({
+      where: { id: songId }
+    });
+
+    if (userSong && userSong.ownerId === userId) {
+      return res.status(403).json({ error: "You cannot purchase your own uploaded songs" });
+    }
+
     // Check if already purchased
     const existing = await prisma.purchase.findFirst({
       where: {

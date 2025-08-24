@@ -21,8 +21,7 @@ const app = express();
 const corsOptions = {
   origin: [
     "http://localhost:5173",  // Vite dev server
-    "http://localhost:4280",  // Azure Static Web Apps CLI
-    /https:\/\/.*\.azurestaticapps\.net$/  // Azure Static Web Apps production
+    "https://music-marketplace-backend-dbdl.onrender.com"
   ],
   credentials: true,
   optionsSuccessStatus: 200

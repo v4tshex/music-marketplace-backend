@@ -438,42 +438,57 @@ app.get('/debug/media', async (req, res) => {
 // Route to search songs with pagination
 app.get('/search', async (req, res) => {
   try {
-    const { q: searchTerm, page = 1, limit = 10 } = req.query;
+    const {
+      q: searchTerm,
+      page = 1,
+      limit = 10,
+      // optional filters
+      explicit,
+      hasPreview,
+      minDurationSec,
+      maxDurationSec,
+      sortBy = 'name',
+      sortOrder = 'asc'
+    } = req.query;
+
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
 
-    let whereClause = {};
-    
+    const andConditions = [];
+
     if (searchTerm && searchTerm.trim()) {
-      whereClause = {
+      andConditions.push({
         OR: [
-          {
-            name: {
-              contains: searchTerm
-            }
-          },
-          {
-            album: {
-              name: {
-                contains: searchTerm
-              }
-            }
-          },
-          {
-            track_artists: {
-              some: {
-                artist: {
-                  name: {
-                    contains: searchTerm
-                  }
-                }
-              }
-            }
-          }
+          { name: { contains: searchTerm } },
+          { album: { name: { contains: searchTerm } } },
+          { track_artists: { some: { artist: { name: { contains: searchTerm } } } } }
         ]
-      };
+      });
     }
+
+    if (explicit === 'true') andConditions.push({ explicit: true });
+    if (explicit === 'false') andConditions.push({ explicit: false });
+
+    if (hasPreview === 'true') andConditions.push({ preview_url: { not: null } });
+    if (hasPreview === 'false') andConditions.push({ preview_url: null });
+
+    const minMs = minDurationSec ? parseInt(minDurationSec, 10) * 1000 : undefined;
+    const maxMs = maxDurationSec ? parseInt(maxDurationSec, 10) * 1000 : undefined;
+    if (minMs !== undefined || maxMs !== undefined) {
+      andConditions.push({
+        duration_ms: {
+          ...(minMs !== undefined ? { gte: minMs } : {}),
+          ...(maxMs !== undefined ? { lte: maxMs } : {})
+        }
+      });
+    }
+
+    const whereClause = andConditions.length > 0 ? { AND: andConditions } : {};
+
+    let orderBy = { name: sortOrder === 'desc' ? 'desc' : 'asc' };
+    if (sortBy === 'duration_ms') orderBy = { duration_ms: sortOrder === 'desc' ? 'desc' : 'asc' };
+    if (sortBy === 'album_release_date') orderBy = { album: { release_date: sortOrder === 'desc' ? 'desc' : 'asc' } };
 
     const [songs, totalCount] = await Promise.all([
       prisma.track.findMany({
@@ -483,29 +498,17 @@ app.get('/search', async (req, res) => {
             include: {
               media: {
                 where: {
-                  type: {
-                    in: ['album_art', 'cover', 'artwork', 'image', 'album_cover']
-                  }
+                  type: { in: ['album_art', 'cover', 'artwork', 'image', 'album_cover'] }
                 }
               },
-              album_artists: {
-                include: {
-                  artist: true
-                }
-              }
+              album_artists: { include: { artist: true } }
             }
           },
-          track_artists: {
-            include: {
-              artist: true
-            }
-          }
+          track_artists: { include: { artist: true } }
         },
         skip,
         take: limitNum,
-        orderBy: {
-          name: 'asc'
-        }
+        orderBy
       }),
       prisma.track.count({ where: whereClause })
     ]);
@@ -762,7 +765,7 @@ app.post('/songs/:id/play', async (req, res) => {
 
 // Purchase a song
 app.post('/purchase', async (req, res) => {
-  const { userId, songId, paymentData } = req.body;
+  const { userId, songId, paymentData, songType } = req.body;
 
   if (!userId || !songId) {
     return res.status(400).json({ error: "Missing userId or songId" });
@@ -771,11 +774,26 @@ app.post('/purchase', async (req, res) => {
   const TRACK_PRICE = 0.99; // Fixed price for all tracks
 
   try {
-    // Check if the song is a user-uploaded song and if the user is trying to purchase their own song
-    const userSong = await prisma.userSong.findUnique({
-      where: { id: songId }
-    });
+    // Determine song type if not provided
+    let resolvedSongType = songType;
+    let userSong = null;
+    let track = null;
 
+    if (!resolvedSongType) {
+      userSong = await prisma.userSong.findUnique({ where: { id: songId } });
+      if (userSong) {
+        resolvedSongType = 'user';
+      } else {
+        track = await prisma.track.findUnique({ where: { id: songId } });
+        if (track) resolvedSongType = 'spotify';
+      }
+    } else if (resolvedSongType === 'user') {
+      userSong = await prisma.userSong.findUnique({ where: { id: songId } });
+    } else if (resolvedSongType === 'spotify') {
+      track = await prisma.track.findUnique({ where: { id: songId } });
+    }
+
+    // Validate ownership if it's a user song
     if (userSong && userSong.ownerId === userId) {
       return res.status(403).json({ error: "You cannot purchase your own uploaded songs" });
     }
@@ -801,7 +819,8 @@ app.post('/purchase', async (req, res) => {
     const newPurchase = await prisma.purchase.create({
       data: {
         userId,
-        songId
+        songId,
+        songType: resolvedSongType || 'user'
       }
     });
     
@@ -838,6 +857,16 @@ app.get('/purchases/:userId', async (req, res) => {
           songDetails = await prisma.userSong.findUnique({
             where: { id: purchase.songId }
           });
+          if (!songDetails) {
+            // Fallback for legacy/wrong songType
+            songDetails = await prisma.track.findUnique({
+              where: { id: purchase.songId },
+              include: {
+                album: { include: { media: true, album_artists: { include: { artist: true } } } },
+                track_artists: { include: { artist: true } }
+              }
+            });
+          }
         } else if (purchase.songType === 'spotify') {
           songDetails = await prisma.track.findUnique({
             where: { id: purchase.songId },
@@ -859,6 +888,41 @@ app.get('/purchases/:userId', async (req, res) => {
               }
             }
           });
+          if (!songDetails) {
+            // Fallback: some legacy purchases may have stored spotify_id
+            songDetails = await prisma.track.findFirst({
+              where: { spotify_id: purchase.songId },
+              include: {
+                album: { include: { media: true, album_artists: { include: { artist: true } } } },
+                track_artists: { include: { artist: true } }
+              }
+            });
+          }
+          if (!songDetails) {
+            // Fallback for legacy/wrong songType
+            songDetails = await prisma.userSong.findUnique({ where: { id: purchase.songId } });
+          }
+        } else {
+          // Attempt to resolve automatically for legacy purchases
+          songDetails = await prisma.userSong.findUnique({ where: { id: purchase.songId } });
+          if (!songDetails) {
+            songDetails = await prisma.track.findUnique({
+              where: { id: purchase.songId },
+              include: {
+                album: { include: { media: true, album_artists: { include: { artist: true } } } },
+                track_artists: { include: { artist: true } }
+              }
+            });
+            if (!songDetails) {
+              songDetails = await prisma.track.findFirst({
+                where: { spotify_id: purchase.songId },
+                include: {
+                  album: { include: { media: true, album_artists: { include: { artist: true } } } },
+                  track_artists: { include: { artist: true } }
+                }
+              });
+            }
+          }
         }
         
         return {

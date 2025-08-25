@@ -19,7 +19,7 @@ model User {
   website       String?
   profilePicture String?
   dateOfBirth   DateTime?
-  genrePreferences String?  // JSON string of preferred genres
+  genrePreferences String?
   isArtist      Boolean  @default(false)
   artistName    String?
   createdAt     DateTime @default(now())
@@ -42,7 +42,6 @@ model UserSong {
   ownerId     String
   source      String     @default("user")
   plays       Int        @default(0)
-  // purchases   Purchase[] @relation("UserSongPurchases")
 
   @@map("user_songs")
 }
@@ -51,12 +50,9 @@ model Purchase {
   id          String   @id @default(cuid())
   userId      String
   songId      String
-  songType    String   @default("user") // "user" or "spotify"
+  songType    String   @default("user")
   purchasedAt DateTime @default(now())
   
-  // Optional relations - only one will be populated based on songType
-  // userSong    UserSong? @relation("UserSongPurchases", fields: [songId], references: [id], onDelete: Cascade)
-  // spotifyTrack Track?   @relation("SpotifyTrackPurchases", fields: [songId], references: [id], onDelete: Cascade)
 
   @@map("purchases")
 }
@@ -119,7 +115,6 @@ model Track {
   created_at    DateTime      @default(now())
   updated_at    DateTime      @updatedAt
   track_artists TrackArtist[]
-  // purchases     Purchase[] @relation("SpotifyTrackPurchases")
   album         Album         @relation(fields: [album_id], references: [id], onDelete: Cascade)
 
   @@map("tracks")

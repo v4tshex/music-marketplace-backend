@@ -31,11 +31,20 @@ app.use(cors(corsOptions));
 app.use(bodyParser.json());
 app.use(fileUpload({ limits: { fileSize: 50 * 1024 * 1024 } }));  
 
-const blobServiceClient = BlobServiceClient.fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING);
-const containerClient = blobServiceClient.getContainerClient('music-files'); 
+let blobServiceClient = null;
+let containerClient = null;
+try {
+    if (process.env.AZURE_STORAGE_CONNECTION_STRING) {
+        blobServiceClient = BlobServiceClient.fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING);
+        containerClient = blobServiceClient.getContainerClient('music-files');
+    }
+} catch (e) {
+    console.warn('Azure Blob initialization skipped:', e.message);
+}
 
 // Check if container exists, and if not, create it
 async function createContainerIfNotExists() {
+    if (!containerClient) return;
     const exists = await containerClient.exists();
     if (!exists) {
         await containerClient.create();
@@ -62,21 +71,32 @@ app.get('/health', async (req, res) => {
         };
 
         // Check database connectivity
-        try {
-            await prisma.$queryRaw`SELECT 1`;
-            healthCheck.database = 'connected';
-        } catch (dbError) {
-            healthCheck.database = 'disconnected';
-            healthCheck.status = 'degraded';
+        if (process.env.SKIP_DB_CHECK === 'true') {
+            healthCheck.database = 'skipped';
+        } else {
+            try {
+                await prisma.$queryRaw`SELECT 1`;
+                healthCheck.database = 'connected';
+            } catch (dbError) {
+                healthCheck.database = 'disconnected';
+                healthCheck.status = 'degraded';
+            }
         }
 
         // Check Azure Blob Storage connectivity
-        try {
-            await containerClient.exists();
-            healthCheck.blobStorage = 'connected';
-        } catch (blobError) {
+        if (process.env.SKIP_BLOB_CHECK === 'true') {
+            healthCheck.blobStorage = 'skipped';
+        } else if (containerClient) {
+            try {
+                await containerClient.exists();
+                healthCheck.blobStorage = 'connected';
+            } catch (blobError) {
+                healthCheck.blobStorage = 'disconnected';
+                healthCheck.status = 'degraded';
+            }
+        } else {
             healthCheck.blobStorage = 'disconnected';
-            healthCheck.status = 'degraded';
+            healthCheck.status = healthCheck.status === 'ok' ? 'degraded' : healthCheck.status;
         }
 
         // Return appropriate HTTP status
@@ -940,11 +960,15 @@ app.get('/purchases/:userId', async (req, res) => {
 });
 
 // Start the server
-const PORT = process.env.PORT || 5000;
-console.log('Starting server...');
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-});
+if (require.main === module) {
+  const PORT = process.env.PORT || 5000;
+  console.log('Starting server...');
+  app.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT}`);
+  });
+}
+
+module.exports = app;
 
 // Graceful shutdown
 process.on('SIGINT', async () => {

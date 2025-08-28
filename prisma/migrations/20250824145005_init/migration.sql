@@ -1,4 +1,4 @@
--- CreateTable
+
 CREATE TABLE "public"."users" (
     "id" TEXT NOT NULL,
     "firebaseUid" TEXT NOT NULL,
@@ -20,7 +20,7 @@ CREATE TABLE "public"."users" (
     CONSTRAINT "users_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
+
 CREATE TABLE "public"."user_songs" (
     "id" TEXT NOT NULL,
     "title" TEXT NOT NULL,
@@ -39,7 +39,7 @@ CREATE TABLE "public"."user_songs" (
     CONSTRAINT "user_songs_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
+
 CREATE TABLE "public"."purchases" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -50,7 +50,7 @@ CREATE TABLE "public"."purchases" (
     CONSTRAINT "purchases_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
+
 CREATE TABLE "public"."artists" (
     "id" TEXT NOT NULL,
     "spotify_id" TEXT NOT NULL,
@@ -62,7 +62,7 @@ CREATE TABLE "public"."artists" (
     CONSTRAINT "artists_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
+
 CREATE TABLE "public"."albums" (
     "id" TEXT NOT NULL,
     "spotify_id" TEXT NOT NULL,
@@ -78,7 +78,7 @@ CREATE TABLE "public"."albums" (
     CONSTRAINT "albums_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
+
 CREATE TABLE "public"."album_artists" (
     "id" TEXT NOT NULL,
     "album_id" TEXT NOT NULL,
@@ -88,7 +88,7 @@ CREATE TABLE "public"."album_artists" (
     CONSTRAINT "album_artists_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
+
 CREATE TABLE "public"."tracks" (
     "id" TEXT NOT NULL,
     "spotify_id" TEXT NOT NULL,
@@ -107,7 +107,7 @@ CREATE TABLE "public"."tracks" (
     CONSTRAINT "tracks_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
+
 CREATE TABLE "public"."track_artists" (
     "id" TEXT NOT NULL,
     "track_id" TEXT NOT NULL,
@@ -117,7 +117,7 @@ CREATE TABLE "public"."track_artists" (
     CONSTRAINT "track_artists_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
+
 CREATE TABLE "public"."media" (
     "id" TEXT NOT NULL,
     "album_id" TEXT NOT NULL,
@@ -135,44 +135,44 @@ CREATE TABLE "public"."media" (
     CONSTRAINT "media_pkey" PRIMARY KEY ("id")
 );
 
--- CreateIndex
+
 CREATE UNIQUE INDEX "users_firebaseUid_key" ON "public"."users"("firebaseUid");
 
--- CreateIndex
+
 CREATE UNIQUE INDEX "users_email_key" ON "public"."users"("email");
 
--- CreateIndex
+
 CREATE UNIQUE INDEX "artists_spotify_id_key" ON "public"."artists"("spotify_id");
 
--- CreateIndex
+
 CREATE UNIQUE INDEX "albums_spotify_id_key" ON "public"."albums"("spotify_id");
 
--- CreateIndex
+
 CREATE UNIQUE INDEX "album_artists_album_id_artist_id_key" ON "public"."album_artists"("album_id", "artist_id");
 
--- CreateIndex
+
 CREATE UNIQUE INDEX "tracks_spotify_id_key" ON "public"."tracks"("spotify_id");
 
--- CreateIndex
+
 CREATE UNIQUE INDEX "track_artists_track_id_artist_id_key" ON "public"."track_artists"("track_id", "artist_id");
 
--- CreateIndex
+
 CREATE UNIQUE INDEX "media_album_id_type_key" ON "public"."media"("album_id", "type");
 
--- AddForeignKey
+
 ALTER TABLE "public"."album_artists" ADD CONSTRAINT "album_artists_album_id_fkey" FOREIGN KEY ("album_id") REFERENCES "public"."albums"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
+
 ALTER TABLE "public"."album_artists" ADD CONSTRAINT "album_artists_artist_id_fkey" FOREIGN KEY ("artist_id") REFERENCES "public"."artists"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
+
 ALTER TABLE "public"."tracks" ADD CONSTRAINT "tracks_album_id_fkey" FOREIGN KEY ("album_id") REFERENCES "public"."albums"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
+
 ALTER TABLE "public"."track_artists" ADD CONSTRAINT "track_artists_artist_id_fkey" FOREIGN KEY ("artist_id") REFERENCES "public"."artists"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
+
 ALTER TABLE "public"."track_artists" ADD CONSTRAINT "track_artists_track_id_fkey" FOREIGN KEY ("track_id") REFERENCES "public"."tracks"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
+
 ALTER TABLE "public"."media" ADD CONSTRAINT "media_album_id_fkey" FOREIGN KEY ("album_id") REFERENCES "public"."albums"("id") ON DELETE CASCADE ON UPDATE CASCADE;

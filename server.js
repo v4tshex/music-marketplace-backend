@@ -1,26 +1,26 @@
-// modules
+// express api for music marketplace backend
 const express = require('express');
 const bodyParser = require('body-parser');
 const fileUpload = require('express-fileupload');
 const cors = require('cors');
 const dotenv = require('dotenv'); 
 const { v4: uuidv4 } = require('uuid');
-const admin = require('./firebase');  // firebase admin SDK
+const admin = require('./firebase');  
 const { PrismaClient } = require('@prisma/client');
-const { BlobServiceClient } = require('@azure/storage-blob');  // blob SDK
+const { BlobServiceClient } = require('@azure/storage-blob');  
 const path = require('path');
 const fs = require('fs');
 
-// environment variables
+
 dotenv.config();
 console.log("Azure Storage Connection String:", process.env.AZURE_STORAGE_CONNECTION_STRING);
 
 const app = express();
 
-// Configure CORS for different environments
+
 const corsOptions = {
   origin: [
-    "http://localhost:5173",  // Vite dev server
+    "http://localhost:5173",  
     "https://music-marketplace-frontend.onrender.com"
   ],
   credentials: true,
@@ -42,7 +42,7 @@ try {
     console.warn('Azure Blob initialization skipped:', e.message);
 }
 
-// Check if container exists, and if not, create it
+
 async function createContainerIfNotExists() {
     if (!containerClient) return;
     const exists = await containerClient.exists();
@@ -52,16 +52,16 @@ async function createContainerIfNotExists() {
     }
 }
 
-// Call this function when starting the app
+
 createContainerIfNotExists();
 
-// Set up Prisma client
+
 const prisma = new PrismaClient();
 
-// Health check endpoint
+
 app.get('/health', async (req, res) => {
     try {
-        // Basic health check
+        
         const healthCheck = {
             status: 'ok',
             timestamp: new Date().toISOString(),
@@ -70,7 +70,7 @@ app.get('/health', async (req, res) => {
             environment: process.env.NODE_ENV || 'development'
         };
 
-        // Check database connectivity
+        
         if (process.env.SKIP_DB_CHECK === 'true') {
             healthCheck.database = 'skipped';
         } else {
@@ -83,7 +83,7 @@ app.get('/health', async (req, res) => {
             }
         }
 
-        // Check Azure Blob Storage connectivity
+        
         if (process.env.SKIP_BLOB_CHECK === 'true') {
             healthCheck.blobStorage = 'skipped';
         } else if (containerClient) {
@@ -99,7 +99,7 @@ app.get('/health', async (req, res) => {
             healthCheck.status = healthCheck.status === 'ok' ? 'degraded' : healthCheck.status;
         }
 
-        // Return appropriate HTTP status
+        
         const httpStatus = healthCheck.status === 'ok' ? 200 : 503;
         res.status(httpStatus).json(healthCheck);
 
@@ -112,20 +112,20 @@ app.get('/health', async (req, res) => {
     }
 });
 
-// Route to handle user login with Firebase Authentication
+
 app.post('/auth/login', async (req, res) => {
     const { token } = req.body;
 
     try {
         const decodedToken = await admin.auth().verifyIdToken(token);
-        const user = decodedToken; // User data from Firebase
-        res.status(200).json({ user }); // Send user data back to the frontend
+        const user = decodedToken; 
+        res.status(200).json({ user }); 
     } catch (error) {
         res.status(401).send('Unauthorized');
     }
 });
 
-// Route to create user profile
+
 app.post('/users', async (req, res) => {
     const { 
         firebaseUid, 
@@ -167,7 +167,7 @@ app.post('/users', async (req, res) => {
     }
 });
 
-// Route to get user profile by Firebase UID
+
 app.get('/users/:firebaseUid', async (req, res) => {
     const { firebaseUid } = req.params;
 
@@ -187,7 +187,7 @@ app.get('/users/:firebaseUid', async (req, res) => {
     }
 });
 
-// Route to update user profile
+
 app.put('/users/:firebaseUid', async (req, res) => {
     const { firebaseUid } = req.params;
     const { 
@@ -227,13 +227,13 @@ app.put('/users/:firebaseUid', async (req, res) => {
     }
 });
 
-// Ensure the temp directory exists at the top of your file (after imports)
+
 const tempDir = path.join(__dirname, 'temp');
 if (!fs.existsSync(tempDir)) {
     fs.mkdirSync(tempDir);
 }
 
-//upload route
+
 app.post('/upload', async (req, res) => {
     try {
         if (!req.files || !req.files.music) {
@@ -273,7 +273,7 @@ app.post('/upload', async (req, res) => {
     }
 });
 
-// route to store music metadata in database
+
 app.post('/metadata', async (req, res) => {
     const { songId, title, artist, album, genre, trackNumber, explicit, fileUrl, imageUrl, userId } = req.body;
 
@@ -309,18 +309,18 @@ app.post('/metadata', async (req, res) => {
 });
 
 
-// Route to calculate royalties (simulated)
+
 app.post('/calculate-royalty', (req, res) => {
     const { songId, numberOfPlays } = req.body;
 
-    // Simulate royalty calculation (e.g., 0.005 GBP per play)
+    
     const royaltyPerPlay = 0.005;
-    const totalRoyalties = royaltyPerPlay * numberOfPlays;  // Calculate total royalties
+    const totalRoyalties = royaltyPerPlay * numberOfPlays;  
 
-    res.status(200).json({ songId, totalRoyalties });  // Return the calculated royalties
+    res.status(200).json({ songId, totalRoyalties });  
 });
 
-// Route to get all songs (Spotify tracks)
+
 app.get('/metadata', async (req, res) => {
   try {
     const songs = await prisma.track.findMany({
@@ -355,7 +355,7 @@ app.get('/metadata', async (req, res) => {
   }
 });
 
-// Middleware to verify Firebase token and get user ID
+
 const authenticateUser = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -373,7 +373,7 @@ const authenticateUser = async (req, res, next) => {
   }
 };
 
-// Route to get user-uploaded songs for the authenticated user
+
 app.get('/user-songs', authenticateUser, async (req, res) => {
   try {
     const userId = req.user.uid;
@@ -392,10 +392,10 @@ app.get('/user-songs', authenticateUser, async (req, res) => {
   }
 });
 
-// Route to get recent user-uploaded songs (last month) for the music catalogue
+
 app.get('/recent-user-songs', async (req, res) => {
   try {
-    // Calculate date from one month ago
+    
     const oneMonthAgo = new Date();
     oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
     
@@ -416,7 +416,7 @@ app.get('/recent-user-songs', async (req, res) => {
   }
 });
 
-// Debug endpoint to check what's in the database
+
 app.get('/debug/media', async (req, res) => {
   try {
     const media = await prisma.media.findMany({
@@ -455,14 +455,14 @@ app.get('/debug/media', async (req, res) => {
   }
 });
 
-// Route to search songs with pagination
+
 app.get('/search', async (req, res) => {
   try {
     const {
       q: searchTerm,
       page = 1,
       limit = 10,
-      // optional filters
+      
       explicit,
       hasPreview,
       minDurationSec,
@@ -548,7 +548,7 @@ app.get('/search', async (req, res) => {
   }
 });
 
-// Route to search artists with pagination
+
 app.get('/artists', async (req, res) => {
   try {
     const { q: searchTerm, page = 1, limit = 10 } = req.query;
@@ -588,7 +588,7 @@ app.get('/artists', async (req, res) => {
                 }
               }
             },
-            take: 5 // Limit to first 5 tracks per artist for performance
+            take: 5 
           },
           album_artists: {
             include: {
@@ -604,7 +604,7 @@ app.get('/artists', async (req, res) => {
                 }
               }
             },
-            take: 5 // Limit to first 5 albums per artist for performance
+            take: 5 
           },
           _count: {
             select: {
@@ -637,7 +637,7 @@ app.get('/artists', async (req, res) => {
   }
 });
 
-// Route to get songs by a specific artist
+
 app.get('/artists/:artistId/songs', async (req, res) => {
   try {
     const { artistId } = req.params;
@@ -646,7 +646,7 @@ app.get('/artists/:artistId/songs', async (req, res) => {
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
 
-    // First, get the artist details
+    
     const artist = await prisma.artist.findUnique({
       where: { id: artistId }
     });
@@ -655,7 +655,7 @@ app.get('/artists/:artistId/songs', async (req, res) => {
       return res.status(404).json({ error: 'Artist not found' });
     }
 
-    // Get songs where this artist is a track artist
+    
     const [songs, totalCount] = await Promise.all([
       prisma.track.findMany({
         where: {
@@ -728,14 +728,14 @@ app.get('/artists/:artistId/songs', async (req, res) => {
   }
 });
 
-// Delete a song (authenticated, user can only delete their own songs)
+
 app.delete('/songs/:id', authenticateUser, async (req, res) => {
   const { id } = req.params;
   const userId = req.user.uid;
   console.log("Deleting song with id:", id, "for user:", userId);
 
   try {
-    // First check if the song exists and belongs to the user
+    
     const song = await prisma.userSong.findUnique({
       where: { id: id }
     });
@@ -758,7 +758,7 @@ app.delete('/songs/:id', authenticateUser, async (req, res) => {
   }
 });
 
-// Increment play count
+
 app.post('/songs/:id/play', async (req, res) => {
   const { id } = req.params;
 
@@ -783,7 +783,7 @@ app.post('/songs/:id/play', async (req, res) => {
   }
 });
 
-// Purchase a song
+
 app.post('/purchase', async (req, res) => {
   const { userId, songId, paymentData, songType } = req.body;
 
@@ -791,10 +791,10 @@ app.post('/purchase', async (req, res) => {
     return res.status(400).json({ error: "Missing userId or songId" });
   }
 
-  const TRACK_PRICE = 0.99; // Fixed price for all tracks
+  const TRACK_PRICE = 0.99; 
 
   try {
-    // Determine song type if not provided
+    
     let resolvedSongType = songType;
     let userSong = null;
     let track = null;
@@ -813,12 +813,12 @@ app.post('/purchase', async (req, res) => {
       track = await prisma.track.findUnique({ where: { id: songId } });
     }
 
-    // Validate ownership if it's a user song
+    
     if (userSong && userSong.ownerId === userId) {
       return res.status(403).json({ error: "You cannot purchase your own uploaded songs" });
     }
 
-    // Check if already purchased
+    
     const existing = await prisma.purchase.findFirst({
       where: {
         userId: userId,
@@ -830,7 +830,7 @@ app.post('/purchase', async (req, res) => {
       return res.status(409).json({ message: "Already purchased" });
     }
 
-    // Simulate payment processing (in a real app, this would call a payment gateway)
+    
     console.log(`Simulating payment for user ${userId}: £${TRACK_PRICE} for song ${songId}`);
     if (paymentData) {
       console.log(`Payment details: ${JSON.stringify(paymentData)}`);
@@ -844,7 +844,7 @@ app.post('/purchase', async (req, res) => {
       }
     });
     
-    // Return purchase confirmation with price information
+    
     res.status(201).json({
       ...newPurchase,
       price: TRACK_PRICE,
@@ -859,7 +859,7 @@ app.post('/purchase', async (req, res) => {
   }
 });
 
-// Get user purchases
+
 app.get('/purchases/:userId', async (req, res) => {
   const userId = req.params.userId;
 
@@ -868,7 +868,7 @@ app.get('/purchases/:userId', async (req, res) => {
       where: { userId: userId }
     });
 
-    // Manually fetch song details based on songType
+    
     const enrichedPurchases = await Promise.all(
       purchases.map(async (purchase) => {
         let songDetails = null;
@@ -878,7 +878,7 @@ app.get('/purchases/:userId', async (req, res) => {
             where: { id: purchase.songId }
           });
           if (!songDetails) {
-            // Fallback for legacy/wrong songType
+            
             songDetails = await prisma.track.findUnique({
               where: { id: purchase.songId },
               include: {
@@ -909,7 +909,7 @@ app.get('/purchases/:userId', async (req, res) => {
             }
           });
           if (!songDetails) {
-            // Fallback: some legacy purchases may have stored spotify_id
+            
             songDetails = await prisma.track.findFirst({
               where: { spotify_id: purchase.songId },
               include: {
@@ -919,11 +919,11 @@ app.get('/purchases/:userId', async (req, res) => {
             });
           }
           if (!songDetails) {
-            // Fallback for legacy/wrong songType
+            
             songDetails = await prisma.userSong.findUnique({ where: { id: purchase.songId } });
           }
         } else {
-          // Attempt to resolve automatically for legacy purchases
+          
           songDetails = await prisma.userSong.findUnique({ where: { id: purchase.songId } });
           if (!songDetails) {
             songDetails = await prisma.track.findUnique({
@@ -959,7 +959,7 @@ app.get('/purchases/:userId', async (req, res) => {
   }
 });
 
-// Start the server
+
 if (require.main === module) {
   const PORT = process.env.PORT || 5000;
   console.log('Starting server...');
@@ -970,7 +970,7 @@ if (require.main === module) {
 
 module.exports = app;
 
-// Graceful shutdown
+
 process.on('SIGINT', async () => {
   await prisma.$disconnect();
   process.exit(0);

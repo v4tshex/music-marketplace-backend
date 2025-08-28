@@ -1,10 +1,10 @@
 const request = require('supertest');
 
-// Ensure server health checks are test-safe
+
 process.env.SKIP_DB_CHECK = 'true';
 process.env.SKIP_BLOB_CHECK = 'true';
 
-// Mock external modules to avoid any network/service calls
+
 jest.mock('@prisma/client', () => {
   const mockClient = {
     $queryRaw: jest.fn().mockResolvedValue([1])
